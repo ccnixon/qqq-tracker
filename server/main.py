@@ -10,15 +10,29 @@ from server.cache import Cache
 app = Flask(__name__)
 cache = Cache()
 
+"""
+Return the price and trading volume history for a give ticker.
+Also return each of the tracked tickers ranked by the standard deviations of their price or volume specifed by the <metric> param
+"""
 @app.route('/history/<ticker>/<metric>')
 def get_asset(ticker, metric):
     quotes = cache.get_ticker_history(ticker.upper())
-    return json.dumps(quotes)
+    ranks = []
+    if metric == 'volume':
+      ranks = cache.std_dev_vol_ranks
+    if metric == 'price':
+      ranks = cache.std_dev_price_ranks
+    
+    return json.dumps({
+      'history': quotes,
+      'rankings': ranks
+    })
 
 
 def poll_queue():
+    credentials = pika.PlainCredentials(username="user", password="bitnami")
     connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='localhost'))
+        pika.ConnectionParameters(host='localhost', credentials=credentials))
     channel = connection.channel()
 
     channel.queue_declare(queue='price-updates')
@@ -30,7 +44,7 @@ def poll_queue():
     channel.basic_consume(
         queue='price-updates', on_message_callback=callback, auto_ack=True)
 
-    print(' [*] Waiting for messages. To exit press CTRL+C')
+    print('Waiting for messages. To exit press CTRL+C')
     channel.start_consuming()
 
 

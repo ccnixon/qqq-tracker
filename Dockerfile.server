@@ -4,6 +4,6 @@ RUN mkdir /app
 WORKDIR /app
 ADD . /app/
 RUN pip install -r requirements.txt
-
+ENV  PYTHONPATH="${PYTHONPATH}:${pwd}"
 EXPOSE 5000
-CMD ["python", "./app/main.py"]
+CMD ["python", "./server/main.py"]

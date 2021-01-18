@@ -1,11 +1,9 @@
 import statistics
 from worker.notifier import Notifier
 
-
 class Data:
     history = []
     std_dev = 0
-
 
 class Stock:
     _ticker: str
@@ -31,6 +29,7 @@ class Stock:
     def std_dev_price(self) -> float:
         return self._prices.std_dev
 
+    """Check to see if the stock's price and/or volume have exceeded 3x their average from the past 60 min"""
     def check_for_average_deviation(self, current_price, current_volume) -> None:
         prices = self._prices.history
         volume = self._prices.volume
@@ -47,6 +46,7 @@ class Stock:
         if (avg_volume >= (3*current_volume)):
             self._notifier.send_vol_alert(avg_volume, current_volume)
 
+    """Update the stock volume and price history and calulate the standard deviation"""
     def update(self, price, volume):
         vol = self.get_volume()
         prices = self.get_prices()
@@ -57,6 +57,6 @@ class Stock:
             prices.std_dev = statistics.stdev(prices.history)
 
         # Only keep the last 24h worth of history in memory
-        if (len(prices.history) > 1440):
+        if (len(prices.history) > (60*24)):
             prices.history.pop(0)
             vol.history.pop(0)
