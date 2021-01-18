@@ -26,7 +26,7 @@ def get_asset(ticker, metric):
     return json.dumps({
       'history': quotes,
       'rankings': ranks
-    })
+    }), 200, { 'Content-Type': 'application/json' }
 
 
 def poll_queue():
