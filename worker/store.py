@@ -37,7 +37,7 @@ class Store:
 
         for quote in quotes:
             stock = self.get_stock(quote.ticker)
-            stock.update(quote.volume, quote.price)
+            stock.update(quote.price, quote.volume)
             message_body.append({
                 'ticker': quote.ticker,
                 'time': quote.timestamp,

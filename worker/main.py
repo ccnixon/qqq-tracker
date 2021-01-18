@@ -9,7 +9,7 @@ import time
 
 class Worker:
     tickers = ['AAPL', 'MSFT', 'AMZN', 'TSLA', 'FB',
-               'GOOG', 'GOOGL', 'NVDA', 'PYPL', 'ADBE']
+               'GOOG', 'NFLX', 'NVDA', 'PYPL', 'ADBE']
     store = Store(tickers)
 
     """

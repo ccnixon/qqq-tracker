@@ -1,21 +1,25 @@
 import statistics
+from typing import List
+from worker.quote import Quote
 from worker.notifier import Notifier
 
 class Data:
-    history = []
-    std_dev = 0
+    history: List[Quote]
+    std_dev: int
+    def __init__(self) -> None:
+        self.history = []
+        self.std_dev = 0
 
 class Stock:
     _ticker: str
     _volume: Data
     _prices: Data
-    _notifier: Notifier
+    _notifier: Notifier = Notifier()
 
     def __init__(self, ticker) -> None:
-        self._ticker = ticker
         self._volume = Data()
         self._prices = Data()
-        self._notifier = Notifier()
+        self._ticker = ticker
 
     def get_volume(self) -> Data:
         return self._volume
