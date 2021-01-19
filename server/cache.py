@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 from lib.db import DB
 
 db = DB()
@@ -14,12 +14,11 @@ class Cache:
     std_dev_vol_ranks = []
     std_dev_price_ranks = []
 
-    def get_stock(self, ticker: str):
-        print(self.stocks[ticker])
+    def get_stock(self, ticker: str) -> Optional[Dict]:
         if ticker in self.stocks:
             return self.stocks[ticker]
         else:
-            return {}
+            return None
 
     def update_cache(self) -> None:
         stocks = db.get_stocks()

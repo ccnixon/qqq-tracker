@@ -1,4 +1,5 @@
 from lib.db import DB
+from lib.constants import SUPPORTED_TICKERS
 from worker.store import Store
 from typing import Dict, Optional
 from datetime import datetime
@@ -8,8 +9,7 @@ import time
 
 db = DB()
 class Worker:
-    tickers = ['AAPL', 'MSFT', 'AMZN', 'TSLA', 'FB',
-               'GOOG', 'NFLX', 'NVDA', 'PYPL', 'ADBE']
+    tickers = SUPPORTED_TICKERS
     store = Store(tickers)
     last_quote_time: Optional[str] = None
 
@@ -48,7 +48,6 @@ class Worker:
         
         print("Persisting stock updates")
         db.update_stocks(updates)
-        db.get_all()
         print("Updates saved successfully")
 
 

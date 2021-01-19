@@ -5,8 +5,10 @@ import json
 from flask import Flask, request, Response
 from lib.db import DB
 from server.cache import Cache
+from lib.constants import SUPPORTED_TICKERS, SUPPORTED_METRICS
 import schedule
 import time
+from flask_expects_json import expects_json
 
 app = Flask(__name__)
 cache = Cache()
@@ -17,10 +19,17 @@ Return the price and trading volume history for a give ticker.
 Also return each of the tracked tickers ranked by the standard deviations of their price or volume specifed by the <metric> param
 """
 @app.route('/<ticker>/<metric>')
-def get_asset(ticker, metric):
+def get_asset(ticker, metric):    
+    if metric not in SUPPORTED_METRICS:
+      return 'Invalid Metric', 400
+    
     stock = cache.get_stock(ticker.upper())
     history = []
     ranks = []
+    
+    if stock is None:
+      return 'No info found for ticker', 404
+    
     if metric == 'volume':
       ranks = cache.std_dev_vol_ranks
       history = stock['volume']
@@ -34,9 +43,25 @@ def get_asset(ticker, metric):
     }), 200, { 'Content-Type': 'application/json' }
 
 @app.route('/subscribe/', methods=['POST'])
+@expects_json({
+  'type': 'object',
+  'properties': {
+      'ticker': {'type': 'string' },
+      'email': {'type': 'string'},
+      'metric': {'type': 'string', 'enum': SUPPORTED_METRICS }
+  },
+  'required': ['email', 'ticker', 'metric']
+})
 def add_subscription():
   body = request.get_json()
-  db.add_subscription(body['ticker'], body['email'], body['metric'])
+  ticker = body['ticker']
+  email = body['email']
+  metric = body['metric']
+  
+  if ticker.upper() not in SUPPORTED_TICKERS:
+      return Response(400, 'Invalid Ticker')
+  
+  db.add_subscription(ticker, email, metric)
   return Response(status=201)
 
 
