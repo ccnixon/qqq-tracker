@@ -1,3 +1,4 @@
+from worker.stock import Stock
 class Quote:
   ticker: str
   price: float

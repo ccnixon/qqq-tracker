@@ -1,16 +1,19 @@
+from lib.queue import Queue
 from worker.store import Store
 from worker.quote import Quote
-from typing import List, Any, Dict
+from typing import List, Any, Dict, Optional
 from datetime import datetime
 import schedule
 import requests
 import time
 
+queue = Queue('price-updates')
 
 class Worker:
     tickers = ['AAPL', 'MSFT', 'AMZN', 'TSLA', 'FB',
                'GOOG', 'NFLX', 'NVDA', 'PYPL', 'ADBE']
     store = Store(tickers)
+    last_quote_time: Optional[str] = None
 
     """
     Data is pulled using the IEX Cloud API: https://iexcloud.io/
@@ -22,19 +25,32 @@ class Worker:
         res = requests.get(request_url)
         return res.json()
 
+    def get_quote_time(self, data: Dict) -> str:
+        data = data['AAPL']['intraday-prices'][0]
+        timestamp = datetime.strptime("{} {}".format(data['date'], data['minute']), '%Y-%m-%d %H:%M')
+        return timestamp.strftime('%Y-%m-%d %H:%M')
+
     def update_store(self) -> None:
         prices = self.get_data()
-        quotes: List[Quote] = []
-        qt = ''
+        quote_time = self.get_quote_time(prices)
+        
+        if (self.last_quote_time is not None and quote_time == self.last_quote_time):
+            print("Duplicate quote detected, skipping")
+            return
+        else:
+            self.last_quote_time = quote_time
+        
         for ticker in prices:
             data = prices[ticker]['intraday-prices'].pop()
-            quote_time = datetime.strptime("{} {}".format(
-                data['date'], data['minute']), '%Y-%m-%d %H:%M')
-            qt = quote_time.strftime('%Y-%m-%d %H:%M')
             avg_price = data['average']
             volume = data['volume']
-            quotes.append(Quote(ticker, avg_price, volume, qt))
-        self.store.update(quotes, qt)
+            stock = self.store.get_stock(ticker)
+            stock.update(avg_price, volume)
+            queue.push(stock.snapshot())
+        
+        print("Publishing stock updates")
+        queue.flush()
+        print("Updates published successfully")
 
 
 w = Worker()
