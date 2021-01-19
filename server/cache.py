@@ -1,7 +1,6 @@
 from typing import Dict, List, Optional
 from lib.db import DB
-
-db = DB()
+from pymongo import MongoClient
 
 def generate_ranks(quotes: List[Dict], metric: str) -> List[str]:
     quotes.sort(key=lambda x: x[metric], reverse=True)
@@ -10,9 +9,14 @@ def generate_ranks(quotes: List[Dict], metric: str) -> List[str]:
 
 
 class Cache:
+    db: DB
     stocks: Dict[str, List[Dict]] = {}
     std_dev_vol_ranks = []
     std_dev_price_ranks = []
+
+    def __init__(self, db: DB) -> None:
+        super().__init__()
+        self.db = db
 
     def get_stock(self, ticker: str) -> Optional[Dict]:
         if ticker in self.stocks:
@@ -21,7 +25,7 @@ class Cache:
             return None
 
     def update_cache(self) -> None:
-        stocks = db.get_stocks()
+        stocks = self.db.get_stocks()
         for stock in stocks:
             print(stock)
             ticker = stock['ticker']

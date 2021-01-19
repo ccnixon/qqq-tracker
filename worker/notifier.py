@@ -6,8 +6,9 @@ from sendgrid.helpers.mail import Mail
 sg = SendGridAPIClient(
     os.getenv('SENDGRID_API_KEY'))
 
-db = DB()
 class Notifier:
+    def __init__(self, db: DB) -> None:
+        super().__init__()
     def send_notifications(self, metric: str, ticker: str) -> None:
         subscriptions = db.get_subscriptions(ticker)
         

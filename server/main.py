@@ -3,6 +3,7 @@ import sys
 import threading
 import json
 from flask import Flask, request, Response
+from pymongo.mongo_client import MongoClient
 from lib.db import DB
 from server.cache import Cache
 from lib.constants import SUPPORTED_TICKERS, SUPPORTED_METRICS
@@ -11,8 +12,8 @@ import time
 from flask_expects_json import expects_json
 
 app = Flask(__name__)
-cache = Cache()
-db = DB()
+db = DB(client=MongoClient())
+cache = Cache(db=db)
 
 """
 Return the price and trading volume history for a give ticker.

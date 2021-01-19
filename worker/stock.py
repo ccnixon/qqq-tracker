@@ -1,24 +1,25 @@
 import statistics
 from typing import List, Dict
 from worker.notifier import Notifier
-
+from lib.db import DB
 class Stock:
     ticker: str
     volume: List[int]
     prices: List[float]
     std_dev_vol: float
     std_dev_price: float
+    notifier: Notifier
 
-    def __init__(self, ticker) -> None:
+    def __init__(self, ticker: str, notifier: Notifier) -> None:
         self.ticker = ticker
         self.volume = []
         self.prices = []
         self.std_dev_price = 0
         self.std_dev_vol = 0
+        self.notifier = notifier
 
     """Check to see if the stock's price and/or volume have exceeded 3x their average from the past 60 min"""
     def check_for_average_deviation(self, current_price, current_volume) -> None:
-        notifier = Notifier()
         prices = self.prices
         volume = self.volume
 
@@ -30,9 +31,9 @@ class Stock:
         avg_volume = statistics.median(volume)
 
         if (current_price > (3*avg_price)):
-            notifier.send_price_alert(avg_price, current_price)
+            self.notifier.send_notifications('price', self.ticker)
         if (avg_volume > (3*current_volume)):
-            notifier.send_vol_alert(avg_volume, current_volume)
+            self.notifier.send_notifications('volume', self.ticker)
 
     """Update the stock volume and price history and calulate the standard deviation"""
     def update(self, price, volume):

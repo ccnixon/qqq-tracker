@@ -1,11 +1,19 @@
-from typing import List, Dict
+from typing import Collection, List, Dict
 from pymongo import MongoClient, operations
-client = MongoClient()
-
-mongo = client.stocks
+from pymongo.database import Database
 class DB:
-  stocks_table = mongo.stocks
-  subscriptions_table = mongo.subscriptions
+  client: MongoClient
+  _db: Database
+  stocks_table: Collection
+  subscriptions_table: Collection
+
+  def __init__(self, client: MongoClient) -> None:
+      super().__init__()
+      self.client = client
+      self._db = self.client.market_tracker
+      self.stocks_table = self._db.stocks
+      self.subscriptions_table = self._db.subscriptions
+  
   def update_stocks(self, stocks: List[Dict]):
     requests = []
     for stock in stocks:
@@ -15,6 +23,7 @@ class DB:
   
   def get_stocks(self):
     results = []
+    print(self.stocks_table)
     stocks = self.stocks_table.find({})
     for stock in stocks:
       del stock['_id']

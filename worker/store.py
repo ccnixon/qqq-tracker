@@ -1,17 +1,22 @@
 from datetime import datetime
 from typing import Dict, List, Optional
+from worker.notifier import Notifier
 from worker.stock import Stock
 from lib.db import DB
 
-db = DB()
+
 class Store:
     cache: Dict[str, Stock]
     last_quote_time: Optional[str] = None
-    def __init__(self, tickers: List[str]) -> None:
+    db: DB
+    notifier: Notifier
+    def __init__(self, tickers: List[str], db: DB) -> None:
         self.cache = {}
         self.last_quote_time = None
+        self.db = db
+        self.notifier = Notifier(db)
         for ticker in tickers:
-            self.cache[ticker] = Stock(ticker)
+            self.cache[ticker] = Stock(ticker, self.notifier)
 
     def get_stock(self, ticker) -> Stock:
         if ticker not in self.cache:
@@ -42,5 +47,5 @@ class Store:
             updates.append(stock.snapshot())
         
         print("Persisting stock updates")
-        db.update_stocks(updates)
+        self.db.update_stocks(updates)
         print("Updates saved successfully")

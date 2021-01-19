@@ -1,10 +1,15 @@
-from lib.constants import SUPPORTED_TICKERS
-from worker.store import Store
-import schedule
-import requests
 import time
 
-store = Store(SUPPORTED_TICKERS)
+import requests
+import schedule
+from lib.constants import SUPPORTED_TICKERS
+from lib.db import DB
+from worker.store import Store
+from pymongo import MongoClient
+
+db = DB(client=MongoClient())
+
+store = Store(SUPPORTED_TICKERS, db)
 
 """
 Data is pulled using the IEX Cloud API: https://iexcloud.io/
