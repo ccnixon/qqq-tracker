@@ -53,8 +53,8 @@ class Stock:
     def snapshot(self) -> Dict:
         return {
             'ticker': self.ticker,
-            'price': self.prices[-1],
-            'volume': self.volume[-1],
+            'price': self.prices,
+            'volume': self.volume,
             'std_dev_vol': self.std_dev_vol,
             'std_dev_price': self.std_dev_price
         }

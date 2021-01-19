@@ -1,11 +1,11 @@
 import os
 import sys
 import threading
-import pika
 import json
 from flask import Flask
-
 from server.cache import Cache
+import schedule
+import time
 
 app = Flask(__name__)
 cache = Cache()
@@ -14,43 +14,34 @@ cache = Cache()
 Return the price and trading volume history for a give ticker.
 Also return each of the tracked tickers ranked by the standard deviations of their price or volume specifed by the <metric> param
 """
-@app.route('/history/<ticker>/<metric>')
+@app.route('/<ticker>/<metric>')
 def get_asset(ticker, metric):
-    quotes = cache.get_ticker_history(ticker.upper())
+    stock = cache.get_stock(ticker.upper())
+    history = []
     ranks = []
     if metric == 'volume':
       ranks = cache.std_dev_vol_ranks
+      history = stock['volume']
     if metric == 'price':
       ranks = cache.std_dev_price_ranks
+      history = stock['prices']
     
     return json.dumps({
-      'history': quotes,
+      metric: history,
       'rankings': ranks
     }), 200, { 'Content-Type': 'application/json' }
 
 
-def poll_queue():
-    credentials = pika.PlainCredentials(username="user", password="bitnami")
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host='localhost', credentials=credentials))
-    channel = connection.channel()
-
-    channel.queue_declare(queue='price-updates')
-
-    def callback(ch, method, properties, body):
-        print(" [x] Received %r" % body)
-        cache.update_cache(json.loads(body))
-
-    channel.basic_consume(
-        queue='price-updates', on_message_callback=callback, auto_ack=True)
-
-    print('Waiting for messages. To exit press CTRL+C')
-    channel.start_consuming()
+def update_cache():
+  schedule.every(1).minute.do(cache.update_cache).run()
+  while True:
+    schedule.run_pending()
+    time.sleep(1)
 
 
 if __name__ == "__main__":
     try:
-      thread = threading.Thread(target=poll_queue)
+      thread = threading.Thread(target=update_cache)
       thread.start()
       app.run()
     except KeyboardInterrupt:

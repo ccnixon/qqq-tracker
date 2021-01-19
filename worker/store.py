@@ -1,15 +1,5 @@
-import json
-import pika
 from typing import List, Dict
 from worker.stock import Stock
-
-credentials = pika.PlainCredentials(username="user", password="bitnami")
-connection = pika.BlockingConnection(
-    pika.ConnectionParameters(host='localhost', credentials=credentials))
-channel = connection.channel()
-channel.queue_declare(queue='price-updates')
-
-
 class Store:
     cache: Dict[str, Stock]
 

@@ -1,4 +1,4 @@
-from lib.queue import Queue
+from lib.db import DB
 from worker.store import Store
 from typing import Dict, Optional
 from datetime import datetime
@@ -6,8 +6,7 @@ import schedule
 import requests
 import time
 
-queue = Queue('price-updates')
-
+db = DB()
 class Worker:
     tickers = ['AAPL', 'MSFT', 'AMZN', 'TSLA', 'FB',
                'GOOG', 'NFLX', 'NVDA', 'PYPL', 'ADBE']
@@ -38,18 +37,19 @@ class Worker:
             return
         else:
             self.last_quote_time = quote_time
-        
+        updates = []
         for ticker in prices:
             data = prices[ticker]['intraday-prices'].pop()
             avg_price = data['average']
             volume = data['volume']
             stock = self.store.get_stock(ticker)
             stock.update(avg_price, volume)
-            queue.push(stock.snapshot())
+            updates.append(stock.snapshot())
         
-        print("Publishing stock updates")
-        queue.flush()
-        print("Updates published successfully")
+        print("Persisting stock updates")
+        db.update(updates)
+        db.get_all()
+        print("Updates saved successfully")
 
 
 w = Worker()

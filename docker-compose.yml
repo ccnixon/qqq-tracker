@@ -1,7 +1,9 @@
 version: "3.9"
+
 services:
-  rabbitmq:
-    image: 'bitnami/rabbitmq:latest'
+  mongodb:
+    image: 'bitnami/mongodb:latest'
     ports:
-      - 5672:5672
-      - 15672:15672
+      - '27017:27017'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
