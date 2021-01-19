@@ -32,20 +32,16 @@ class Store:
         quote_time = self.get_quote_time(prices)
         
         if (self.last_quote_time is not None and quote_time == self.last_quote_time):
-            print("Duplicate quote detected, skipping")
             return
         else:
             self.last_quote_time = quote_time
         
         updates = []
         for ticker in prices:
-            data = prices[ticker]['intraday-prices'].pop()
+            data = prices[ticker]['intraday-prices'][0]
             avg_price = data['average']
             volume = data['volume']
             stock = self.get_stock(ticker)
             stock.update(avg_price, volume)
             updates.append(stock.snapshot())
-        
-        print("Persisting stock updates")
         self.db.update_stocks(updates)
-        print("Updates saved successfully")
