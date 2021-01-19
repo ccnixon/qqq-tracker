@@ -15,6 +15,8 @@ app = Flask(__name__)
 db = DB(client=MongoClient())
 cache = Cache(db=db)
 
+headers = { 'Content-Type': 'application/json' }
+
 """
 Return the price and trading volume history for a give ticker.
 Also return each of the tracked tickers ranked by the standard deviations of their price or volume specifed by the <metric> param
@@ -34,14 +36,15 @@ def get_asset(ticker, metric):
     if metric == 'volume':
       ranks = cache.std_dev_vol_ranks
       history = stock['volume']
-    if metric == 'price':
+    if metric == 'prices':
+      print(stock['price'])
       ranks = cache.std_dev_price_ranks
-      history = stock['prices']
+      history = stock['price']
     
     return json.dumps({
       metric: history,
       'rankings': ranks
-    }), 200, { 'Content-Type': 'application/json' }
+    }), 200, headers
 
 @app.route('/subscribe/', methods=['POST'])
 @expects_json({
@@ -60,10 +63,10 @@ def add_subscription():
   metric = body['metric']
   
   if ticker.upper() not in SUPPORTED_TICKERS:
-      return Response(400, 'Invalid Ticker')
+      return 400, 'Invalid Ticker', headers
   
   db.add_subscription(ticker, email, metric)
-  return Response(status=201)
+  return 201, headers
 
 
 def update_cache():

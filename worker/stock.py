@@ -1,7 +1,9 @@
 import statistics
-from typing import List, Dict
+from typing import List, Dict, Optional
 from worker.notifier import Notifier
 from lib.db import DB
+
+
 class Stock:
     ticker: str
     volume: List[int]
@@ -19,6 +21,7 @@ class Stock:
         self.notifier = notifier
 
     """Check to see if the stock's price and/or volume have exceeded 3x their average from the past 60 min"""
+
     def check_for_average_deviation(self, current_price, current_volume) -> None:
         prices = self.prices
         volume = self.volume
@@ -36,21 +39,28 @@ class Stock:
             self.notifier.send_notifications('volume', self.ticker)
 
     """Update the stock volume and price history and calulate the standard deviation"""
-    def update(self, price, volume):
+
+    def update(self, price: Optional[float], volume: int):
         self.check_for_average_deviation(price, volume)
         vol = self.volume
         prices = self.prices
         vol.append(volume)
-        prices.append(price)
-        if (len(prices) > 1 and len(vol) > 1):
-            self.std_dev_vol = statistics.stdev(vol)
+        if price is not None:
+            prices.append(price)
+
+        if len(prices) > 1:
             self.std_dev_price = statistics.stdev(prices)
+
+        if len(vol) > 1:
+            self.std_dev_vol = statistics.stdev(vol)
 
         # Only keep the last 24h worth of history in memory
         if (len(prices) > (60*24)):
             prices.pop(0)
+        
+        if (len(vol) > (60*24)):
             vol.pop(0)
-    
+
     def snapshot(self) -> Dict:
         return {
             'ticker': self.ticker,

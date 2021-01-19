@@ -17,13 +17,13 @@ class DB:
   def update_stocks(self, stocks: List[Dict]):
     requests = []
     for stock in stocks:
+      print(stock)
       request = operations.UpdateOne({ 'ticker': stock['ticker'] }, { '$set': stock }, upsert=True)
       requests.append(request)
     self.stocks_table.bulk_write(requests)
   
   def get_stocks(self):
     results = []
-    print(self.stocks_table)
     stocks = self.stocks_table.find({})
     for stock in stocks:
       del stock['_id']
