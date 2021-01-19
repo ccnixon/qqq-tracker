@@ -5,13 +5,18 @@ AAPL, MSFT, AMZN, TSLA, FB, GOOG, NFLX, NVDA, PYPL, ADBE
 
 ## Getting Started
 ### Requirements
-You will need python3 and docker-compose installed on your machine.
+You will need python 3 and docker-compose installed on your machine.
 
 ### Installation
 ```
 git clone https://github.com/ccnixon/qqq-tracker && cd qqq-tracker
 pip install -r requirements.txt
 docker-compose up -d
+```
+
+If necessary, ensure your `PYTHONPATH` is set:
+```
+export PYTHONPATH="${PYTHONPATH}:${pwd}"
 ```
 
 To run the worker:
@@ -24,71 +29,79 @@ To run the server, open a second terminal window and run:
 python server/main.py
 ```
 ## Architecture
-This service is composed of two independent services, a `server` and a `worker`.
+We are leveraging a batch/poll based architecture. This is a simple and straightforward solution. Potential options for more advanced approaches are explored later.
 
 ### Worker
-The worker is responsible for polling the IEX Cloud financial data API every minute to gather information on the recent trading activity of the stocks being tracked. With each new batch of data, it does the following:
+The worker is responsible for polling the IEX Cloud financial data API every minute to gather information on the recent trading activity (ie. Candlesticks) of the stocks being tracked. With each new batch of data, it does the following:
 
-1. Calculates the standard deviation of the price and volume changes over the past 24 hours and ranks each stock in descending order based on each value.
-2. Checks to see if the most recent price and/or volume values have increase by at least 3x from their averages over the past hour. If such an increase has occurred, it triggers a notification to be sent out to users.
-3. Publishes the price, volume, and standard deviation metrics to RabbitMQ to be consumed by the server.
+1. Calculates the standard deviation of the price and volume changes over the past 24 hours.
+2. Checks to see if the most recent price and/or volume values have increase by at least 3x from their trailing 60 min. averages. 
+3. If such an increase has occurred, it triggers a notification to be sent out to users.
+4. Writes the updated the price, volume, and standard deviation metrics to the database to be consumed by the server.
 
 ### Server
-The server is responsible for handling incoming requests for data on the tracked stocks. The application runs two threads. The first is responsible for handling incoming http requests from clients. The second runs in a loop and listens for updates published by the worker to RabbitMQ. When updates arrive, it loads them into an in-memory cache for the http handler to use.
+The server is responsible for handling incoming requests for data on the tracked stocks. The application runs two threads. The first (the API) is responsible for handling incoming http requests from clients. The second (the cache runner) runs in a loop and continuously updates an in-memory cache (used by the API) with new data from the database.
 
 ## API
+### Get stock data
 Retrieve the price/volume history for a given stock and the ranking of each tracked stock based on the standard deviation of either their price or volume. The value of the `metric` parameter must be either `volume` or `price`
 
 **Request:**
 ```
-GET `/history/<ticker>/<volume|price>`
+GET `/<ticker>/volume|price`
 ```
 **Response**
 ```
 {
-  history: Array
+  prices|volume: Array
   rankings: Array
 }
 ```
 
+### Subscribe to stock notifications
+Subscribe to notifications. An email will be sent whenever a stock exceeds the trailing 60 min average of your chosen metric by at least 3x.
+
+**Request:**
+```
+POST `/subscribe`
+{
+  email: String
+  metric: volume|price
+  ticker: string
+}
+```
+
 ## Deployment and Scaling Strategy
-The service is comprised of three separate entities (server, worker, and queue) so I'll address each separately.
+The service is comprised of three separate entities (server, worker, and the db) so I'll address each separately.
 
 ### Server
-The server would be deployed using a container management solution like Kubernetes or ECS. 
+The server would be deployed using a container management solution like Kubernetes or ECS. The server itself could scale easily to handle high volume.
 
-The only constraint preventing the system from basically infinite scalability is the queue the service connects to. Depending on the underlying technology powering the queue, too many client connections could begin to strangle the queue cluster. This is addressed in the next section.
-
-### Queue
-This prototype uses RabbitMQ for the sake of simplicity but this **would not** be the right choice long term. RabbitMQ is a message queue however in our system, each node in the server cluster needs to receive its own copy of the data being published by the worker and this is not how message queues work. Instead, we will need a pubsub framework in order to scale beyond a single node. The main options for this would be either Kafka or Kinesis.
-
-The cluster running the queue would need to be able to scale in tandem with the server cluster. As new nodes are added to the server, the queue would need to scale up to handle the increase in client connections.
+### DB
+MongoDB is being used as the database. Mongo provides scalability and performance at the expense of some consistency guarantees. This could be an issue depending on what this service is actually being used for so a decision would need to be made about what the underlying persistence layer long term should be. Potential alternatives are explored below.
 
 ### Worker
 The worker does not really need to scale at all. It is simply polling an API for new data and is not exposed to any kind of external pressure that would require additional capacity. The easiest solution would be to deploy and run the worker using Lambda.
 
 ## Questions
 **What would you change if you needed to track many metrics?**
-Depending on how many metrics we decide to track, the service could start running into memory issues as it currently stores the past 24 hours of data for each stock in memory. To handle this, we would likely need to look into inserting a persistence layer somewhere. The tradeoff would be the overall speed of the system.
+At some point the speed of the worker process execution loop could could start to lag behind the frequency of updates being provided by the API. A more sophisticated approach to account for this could involve using some kind of data stream processing framework such as Kafka Streams, Spark, Flink, etc. This could potentially allow us to scale the worker horizontally.
+
+I might look at [Faust](https://faust.readthedocs.io/en/latest/) as a starting point.
 
 **What if you needed to sample them more frequently?**
-The frequency at which we could sample data would be bound by the speed at which our worker process could execute updates as we would need to ensure each execution finished before starting a new one. That being said, the worker would probably be able to handle a high fairly high frequency as it is performing very little I/O.
-
-The bigger bottleneck might be the server nodes. Too many updates to the queue consumer on each node could starve resources. In this situation we might need to move away from the push based architecture and instead have each consumer pull data lazily (at request time) or on a loop either from a persistent queue or from an alternative persistence mechanism (likely a high performant DB). 
-
-Depending on the approach we take, the tradeoff is that our request latency might suffer or our data might be lagging a bit.
+Similar to the last question. The approach I would take is look into moving away from the poll based system we have now towards more of a stream processing architecture.
 
 **What if you had many users accessing your dashboard to view metrics?**
-This should not be an issue. The server cluster could easily scale assuming we were using a cluster management tool as proposed above.
+Assuming we were running on something like Kubernetes or ECS then the server should be able to easily scale out to handle high usage. The database would also need to be scaled as well but Mongo is [capable of handling this quite well](https://www.mongodb.com/blog/post/crittercism-scaling-to-billions-of-requests-per).
 
 **How would you track the health and uptime of your application?  What are the key metrics/events you would be alerting on?**
 Besides the usual APM metrics (runtime errors, memory issues, CPU usage, etc.) we would likely want to monitor the following:
 1. Server Latency - how quickly are we handling requests for stock data
-2. Consumer Lag - are our server nodes struggling to keep up with the data being published by our Worker node?
-3. Data Integrity :) - has the data being published by our worker node changed unexpectedly or become corrupted?
-4. Worker execution speed - we would need to ensure our worker was executing within the expected time window to prevent potentially missing data
+2. Database latency - how fast are reads/writes happening
+3. Data Integrity :) - has the data being generated by our worker node changed unexpectedly or become corrupted?
+4. Worker execution speed - is our worker executing in sub 60 seconds?
 
 **How would you extend testing for an application of this kind (beyond what you implemented)?**
-1. More integration tests between the worker and server
-2. Server endpoint integration tests
-3. Testing for the notification feature
+1. Server endpoint integration tests
+2. Testing for the notification feature
