@@ -47,7 +47,7 @@ class Worker:
             updates.append(stock.snapshot())
         
         print("Persisting stock updates")
-        db.update(updates)
+        db.update_stocks(updates)
         db.get_all()
         print("Updates saved successfully")
 

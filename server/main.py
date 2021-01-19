@@ -2,13 +2,15 @@ import os
 import sys
 import threading
 import json
-from flask import Flask
+from flask import Flask, request, Response
+from lib.db import DB
 from server.cache import Cache
 import schedule
 import time
 
 app = Flask(__name__)
 cache = Cache()
+db = DB()
 
 """
 Return the price and trading volume history for a give ticker.
@@ -30,6 +32,12 @@ def get_asset(ticker, metric):
       metric: history,
       'rankings': ranks
     }), 200, { 'Content-Type': 'application/json' }
+
+@app.route('/subscribe/', methods=['POST'])
+def add_subscription():
+  body = request.get_json()
+  db.add_subscription(body['ticker'], body['email'], body['metric'])
+  return Response(status=201)
 
 
 def update_cache():

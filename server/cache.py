@@ -22,7 +22,7 @@ class Cache:
             return {}
 
     def update_cache(self) -> None:
-        stocks = db.get_all()
+        stocks = db.get_stocks()
         for stock in stocks:
             print(stock)
             ticker = stock['ticker']
