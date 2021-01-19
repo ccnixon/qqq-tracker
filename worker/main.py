@@ -1,7 +1,6 @@
 from lib.queue import Queue
 from worker.store import Store
-from worker.quote import Quote
-from typing import List, Any, Dict, Optional
+from typing import Dict, Optional
 from datetime import datetime
 import schedule
 import requests

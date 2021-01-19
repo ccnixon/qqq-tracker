@@ -1,7 +1,6 @@
 import json
 import pika
-from typing import List, Optional, Dict
-from worker.quote import Quote
+from typing import List, Dict
 from worker.stock import Stock
 
 credentials = pika.PlainCredentials(username="user", password="bitnami")
