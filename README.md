@@ -31,6 +31,8 @@ python server/main.py
 ## Architecture
 We are leveraging a batch/poll based architecture. This is a simple and straightforward solution. Potential options for more advanced approaches are explored later.
 
+![image](https://user-images.githubusercontent.com/12958606/105150630-4a090000-5b05-11eb-980b-b2f0fb2cb790.png)
+
 ### Worker
 The worker is responsible for polling the IEX Cloud financial data API every minute to gather information on the recent trading activity (ie. Candlesticks) of the stocks being tracked. With each new batch of data, it does the following:
 
